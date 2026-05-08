@@ -8,6 +8,7 @@ import path from 'node:path';
 import type { WatchCapability, WatchContext, PreflightResult, CapabilityResult } from '../types.js';
 import type { MachineCapabilities } from '@bradygaster/squad-sdk/ralph/capabilities';
 import { createVerboseLogger } from '../verbose.js';
+import { buildWatchAgentCommand } from '../prompt-utils.js';
 
 /** Normalized work item for execution. */
 export interface ExecutableWorkItem {
@@ -43,24 +44,6 @@ export function classifyIssue(title: string): 'read' | 'write' {
   const isWrite = WRITE_KEYWORDS.some(k => lower.includes(k));
   if (isRead && !isWrite) return 'read';
   return 'write'; // default to write (safer — gets full agent session)
-}
-
-/** Build agent command for a prompt. */
-function buildAgentCommand(
-  prompt: string,
-  context: WatchContext,
-): { cmd: string; args: string[] } {
-  if (context.agentCmd) {
-    const parts = context.agentCmd.trim().split(/\s+/);
-    const cmd = parts[0]!;
-    const args = [...parts.slice(1), '-p', prompt];
-    return { cmd, args };
-  }
-  const args = ['-p', prompt];
-  if (context.copilotFlags) {
-    args.push(...context.copilotFlags.trim().split(/\s+/));
-  }
-  return { cmd: 'copilot', args };
 }
 
 /** Labels that indicate an issue should not be auto-executed. */
@@ -149,7 +132,7 @@ async function executeAll(
   timeoutMs: number,
 ): Promise<{ success: boolean; error?: string }> {
   const prompt = buildAgentPrompt(issues, context.teamRoot);
-  const { cmd, args } = buildAgentCommand(prompt, context);
+  const { cmd, args } = buildWatchAgentCommand(prompt, context);
 
   return new Promise<{ success: boolean; error?: string }>((resolve) => {
     const cp: ChildProcess = execFile(

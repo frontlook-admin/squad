@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { safeTimestamp } from '@bradygaster/squad-sdk';
 import { FSStorageProvider } from '../sdk-local.js';
 import type { ShellMessage } from './types.js';
+import type { CommunicationStyle } from '../core/communication-style.js';
 
 const storage = new FSStorageProvider();
 
@@ -19,6 +20,7 @@ export interface SessionData {
   createdAt: string;
   lastActiveAt: string;
   messages: ShellMessage[];
+  communicationStyle?: CommunicationStyle;
 }
 
 /** Lightweight summary returned by {@link listSessions}. */

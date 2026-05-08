@@ -6,18 +6,9 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { FSStorageProvider } from '../../../sdk-local.js';
 import type { WatchCapability, WatchContext, PreflightResult, CapabilityResult } from '../types.js';
+import { buildWatchAgentCommand } from '../prompt-utils.js';
 
 const storage = new FSStorageProvider();
-
-function buildAgentCommand(prompt: string, context: WatchContext): { cmd: string; args: string[] } {
-  if (context.agentCmd) {
-    const parts = context.agentCmd.trim().split(/\s+/);
-    return { cmd: parts[0]!, args: [...parts.slice(1), '-p', prompt] };
-  }
-  const args = ['-p', prompt];
-  if (context.copilotFlags) args.push(...context.copilotFlags.trim().split(/\s+/));
-  return { cmd: 'copilot', args };
-}
 
 function spawnWithTimeout(cmd: string, args: string[], cwd: string, timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -70,7 +61,7 @@ export class DecisionHygieneCapability implements WatchCapability {
         'Merge the decision inbox files in .squad/decisions/inbox/ into .squad/decisions.md. ' +
         'Append each decision as a new section. After merging, delete the inbox files.';
 
-      const { cmd, args } = buildAgentCommand(prompt, context);
+      const { cmd, args } = buildWatchAgentCommand(prompt, context);
       await spawnWithTimeout(cmd, args, context.teamRoot, 60_000);
       return { success: true, summary: `decision inbox merged (${fileCount} files)` };
     } catch (e) {

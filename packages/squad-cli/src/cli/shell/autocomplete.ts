@@ -11,6 +11,7 @@ const SLASH_COMMANDS = [
   '/sessions',
   '/resume',
   '/init',
+  '/caveman',
   '/nap',
   '/version',
   '/clear',

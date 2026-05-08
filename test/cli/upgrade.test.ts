@@ -11,6 +11,7 @@ import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { runInit } from '@bradygaster/squad-cli/core/init';
 import { runUpgrade, ensureGitattributes, ensureGitignore, ensureDirectories, ensureCastingDefaults, selfUpgradeCli } from '@bradygaster/squad-cli/core/upgrade';
+import { refreshBuiltInSkillsIfStale } from '../../packages/squad-cli/src/cli/core/upgrade.js';
 import { getPackageVersion } from '@bradygaster/squad-cli/core/version';
 
 const TEST_ROOT = join(tmpdir(), `.test-cli-upgrade-${randomBytes(4).toString('hex')}`);
@@ -179,6 +180,35 @@ describe('CLI: upgrade command', () => {
     
     const decisionContent = await readFile(decisionPath, 'utf-8');
     expect(decisionContent).toBe('# Decision\n');
+  });
+
+  it('refreshes built-in skills once per day for normal squad usage', async () => {
+    const cavemanPath = join(TEST_ROOT, '.copilot', 'skills', 'caveman', 'SKILL.md');
+    const stampPath = join(TEST_ROOT, '.squad', '.built-in-skills-refreshed-on');
+
+    await writeFile(cavemanPath, 'stale caveman skill\n');
+
+    const first = refreshBuiltInSkillsIfStale(TEST_ROOT, {
+      now: new Date('2026-05-08T01:00:00.000Z'),
+    });
+    expect(first.refreshed).toBe(true);
+    expect(first.teamRoot).toBe(TEST_ROOT);
+    expect(await readFile(stampPath, 'utf-8')).toContain('2026-05-08');
+
+    await writeFile(cavemanPath, 'locally stale again\n');
+
+    const second = refreshBuiltInSkillsIfStale(TEST_ROOT, {
+      now: new Date('2026-05-08T18:00:00.000Z'),
+    });
+    expect(second.refreshed).toBe(false);
+    expect(second.skippedReason).toBe('already-refreshed-today');
+    expect(await readFile(cavemanPath, 'utf-8')).toBe('locally stale again\n');
+
+    const third = refreshBuiltInSkillsIfStale(TEST_ROOT, {
+      now: new Date('2026-05-09T01:00:00.000Z'),
+    });
+    expect(third.refreshed).toBe(true);
+    expect(await readFile(stampPath, 'utf-8')).toContain('2026-05-09');
   });
 
   it('creates missing Codex setup files on upgrade without overwriting existing files', async () => {

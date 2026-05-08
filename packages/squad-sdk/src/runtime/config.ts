@@ -55,6 +55,18 @@ export type { AgentRole } from './constants.js';
 export type TaskOutputType = 'code' | 'text' | 'analysis' | 'decision';
 
 /**
+ * Persistent communication style preference for agent conversations.
+ */
+export type CommunicationStyle =
+  | 'normal'
+  | 'caveman-lite'
+  | 'caveman-full'
+  | 'caveman-ultra'
+  | 'caveman-wenyan-lite'
+  | 'caveman-wenyan'
+  | 'caveman-wenyan-ultra';
+
+/**
  * Model selection configuration (Layer 3 + Layer 4).
  */
 export interface ModelSelectionConfig {
@@ -305,6 +317,9 @@ export interface SquadConfig {
   
   /** Platform-specific overrides */
   platforms?: PlatformOverrides;
+
+  /** Default communication style for agent sessions. */
+  communicationStyle?: CommunicationStyle;
   
   /** Custom extensions */
   [key: string]: unknown;
@@ -375,7 +390,8 @@ export const DEFAULT_CONFIG: SquadConfig = {
       disableModelSelection: false,
       scribeMode: 'sync'
     }
-  }
+  },
+  communicationStyle: 'normal',
 };
 
 // ============================================================================
@@ -698,6 +714,21 @@ export function validateConfigDetailed(config: unknown): ValidationResult {
           }
         });
       }
+    }
+  }
+
+  if (cfg.communicationStyle !== undefined) {
+    const validStyles = new Set([
+      'normal',
+      'caveman-lite',
+      'caveman-full',
+      'caveman-ultra',
+      'caveman-wenyan-lite',
+      'caveman-wenyan',
+      'caveman-wenyan-ultra',
+    ]);
+    if (typeof cfg.communicationStyle !== 'string' || !validStyles.has(cfg.communicationStyle)) {
+      errors.push('config.communicationStyle must be one of: normal, caveman-lite, caveman-full, caveman-ultra, caveman-wenyan-lite, caveman-wenyan, caveman-wenyan-ultra');
     }
   }
   

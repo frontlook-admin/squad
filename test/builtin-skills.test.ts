@@ -16,6 +16,7 @@ const EXPECTED_BUILTIN_SKILLS = [
   'reviewer-protocol',
   'test-discipline',
   'agent-collaboration',
+  'caveman',
 ];
 
 // Unit tests for the skill manifest declarations. End-to-end scaffolding

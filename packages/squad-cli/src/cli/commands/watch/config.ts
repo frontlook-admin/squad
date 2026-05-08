@@ -7,6 +7,8 @@
 import path from 'node:path';
 import { FSStorageProvider } from '../../sdk-local.js';
 import type { SquadStateContext, StateBackendType } from '../../sdk-local.js';
+import type { CommunicationStyle } from '../../core/communication-style.js';
+import { normalizeCommunicationStyle } from '../../core/communication-style.js';
 
 const storage = new FSStorageProvider();
 
@@ -44,6 +46,8 @@ export interface WatchConfig {
   stateBackend?: StateBackendType;
   /** Pre-resolved state context from CLI entry (avoids redundant resolution). */
   stateContext?: SquadStateContext | null;
+  /** Default communication style for spawned agent conversations. */
+  communicationStyle?: CommunicationStyle;
 }
 
 const DEFAULTS: WatchConfig = {
@@ -103,6 +107,7 @@ export function loadWatchConfig(
     sentinelFile: cliOverrides.sentinelFile ?? fileConfig.sentinelFile,
     stateBackend: cliOverrides.stateBackend ?? fileConfig.stateBackend,
     stateContext: cliOverrides.stateContext,
+    communicationStyle: cliOverrides.communicationStyle ?? fileConfig.communicationStyle ?? DEFAULTS.communicationStyle,
   };
 
   return merged;
@@ -136,6 +141,8 @@ function normalizeFileConfig(raw: Record<string, unknown>): Partial<WatchConfig>
   if (typeof raw['overnightStart'] === 'string') result.overnightStart = raw['overnightStart'];
   if (typeof raw['overnightEnd'] === 'string') result.overnightEnd = raw['overnightEnd'];
   if (typeof raw['sentinelFile'] === 'string') result.sentinelFile = raw['sentinelFile'];
+  const communicationStyle = normalizeCommunicationStyle(raw['communicationStyle']);
+  if (communicationStyle) result.communicationStyle = communicationStyle;
   if (typeof raw['stateBackend'] === 'string') {
     const backend = raw['stateBackend'];
     const validBackends = ['local', 'orphan', 'two-layer', 'external'] as const;
@@ -146,7 +153,7 @@ function normalizeFileConfig(raw: Record<string, unknown>): Partial<WatchConfig>
 
   // Everything else is a capability key
   const caps: Record<string, boolean | Record<string, unknown>> = {};
-  const reserved = new Set(['interval', 'execute', 'maxConcurrent', 'timeout', 'copilotFlags', 'agentCmd', 'verbose', 'dispatchMode', 'logFile', 'authUser', 'notifyLevel', 'overnightStart', 'overnightEnd', 'sentinelFile', 'stateBackend']);
+  const reserved = new Set(['interval', 'execute', 'maxConcurrent', 'timeout', 'copilotFlags', 'agentCmd', 'verbose', 'dispatchMode', 'logFile', 'authUser', 'notifyLevel', 'overnightStart', 'overnightEnd', 'sentinelFile', 'stateBackend', 'communicationStyle']);
   for (const [key, value] of Object.entries(raw)) {
     if (reserved.has(key)) continue;
     if (typeof value === 'boolean' || (typeof value === 'object' && value !== null && !Array.isArray(value))) {

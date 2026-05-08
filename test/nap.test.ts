@@ -230,6 +230,48 @@ describe('Nap — History compression', () => {
 });
 
 // ============================================================================
+// 2b. Caveman compression for always-loaded context files
+// ============================================================================
+
+describe('Nap — Caveman context compression', () => {
+  it('compresses shared-knowledge.md when it is verbose and over threshold', async () => {
+    const verboseBullet = '- This repository is actually the place where the team should use `.squad/routing.md` in order to coordinate work for future agents and sessions.\n';
+    const squadDir = createTestSquadDir({
+      'shared-knowledge.md': '# Shared Knowledge\n\n' + verboseBullet.repeat(40),
+    });
+
+    const before = readFileSync(join(squadDir, 'shared-knowledge.md'), 'utf8');
+    const result = await runNap({ squadDir });
+    const after = readFileSync(join(squadDir, 'shared-knowledge.md'), 'utf8');
+
+    expect(after.length).toBeLessThan(before.length);
+    expect(after).toContain('# Shared Knowledge');
+    expect(after).toContain('`.squad/routing.md`');
+    expect(result.actions.some(a => a.type === 'compress' && a.target.endsWith('shared-knowledge.md'))).toBe(true);
+  });
+
+  it('preserves frontmatter, code, and paths while compressing wisdom/now prose', async () => {
+    const wisdomEntry = '**Pattern:** The repository should use structured logging in order to help future agents debug issues quickly and clearly.\n';
+    const nowNarrative = 'The team is actually focused on stabilizing `src/app.ts` and `packages/squad-cli/src/cli-entry.ts` in order to improve release confidence for future sessions.\n';
+    const squadDir = createTestSquadDir({
+      'identity/wisdom.md': '---\nlast_updated: 2026-05-08\n---\n\n# Team Wisdom\n\n' + wisdomEntry.repeat(35),
+      'identity/now.md': '---\nupdated_at: 2026-05-08\nfocus_area: release hardening\nactive_issues: []\n---\n\n# What We\'re Focused On\n\n' + nowNarrative.repeat(30),
+    });
+
+    await runNap({ squadDir });
+
+    const wisdom = readFileSync(join(squadDir, 'identity/wisdom.md'), 'utf8');
+    const now = readFileSync(join(squadDir, 'identity/now.md'), 'utf8');
+
+    expect(wisdom).toContain('last_updated: 2026-05-08');
+    expect(wisdom).toContain('# Team Wisdom');
+    expect(now).toContain('updated_at: 2026-05-08');
+    expect(now).toContain('`src/app.ts`');
+    expect(now).toContain('`packages/squad-cli/src/cli-entry.ts`');
+  });
+});
+
+// ============================================================================
 // 3. Log pruning
 // ============================================================================
 

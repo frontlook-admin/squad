@@ -4,17 +4,7 @@
 
 import { execFile } from 'node:child_process';
 import type { WatchCapability, WatchContext, PreflightResult, CapabilityResult } from '../types.js';
-
-/** Build agent command from prompt, respecting --agent-cmd. */
-function buildAgentCommand(prompt: string, context: WatchContext): { cmd: string; args: string[] } {
-  if (context.agentCmd) {
-    const parts = context.agentCmd.trim().split(/\s+/);
-    return { cmd: parts[0]!, args: [...parts.slice(1), '-p', prompt] };
-  }
-  const args = ['-p', prompt];
-  if (context.copilotFlags) args.push(...context.copilotFlags.trim().split(/\s+/));
-  return { cmd: 'copilot', args };
-}
+import { buildWatchAgentCommand } from '../prompt-utils.js';
 
 function spawnWithTimeout(cmd: string, args: string[], cwd: string, timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -50,7 +40,7 @@ export class MonitorTeamsCapability implements WatchCapability {
         'First check existing open issues with label "teams-bridge" to avoid duplicates. ' +
         'If WorkIQ is not available, just report that and exit.';
 
-      const { cmd, args } = buildAgentCommand(prompt, context);
+      const { cmd, args } = buildWatchAgentCommand(prompt, context);
       await spawnWithTimeout(cmd, args, context.teamRoot, 60_000);
       return { success: true, summary: 'Teams scan complete' };
     } catch (e) {

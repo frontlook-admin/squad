@@ -26,11 +26,11 @@ If the user asks for squad or team behavior, also load the relevant member chart
 
 ## Delegation Contract
 
-Use sub-agents whenever the current host permits delegation and parallel specialist work will materially improve the result.
+Use sub-agents only when the user asks for squad/team/multi-agent work or when the current host instructions explicitly permit delegation.
 
 Map Squad roles to the available Codex sub-agent types in the current host environment. If the host only exposes generic roles, keep the Squad member identity in the delegated prompt.
 
-Use the full available host capability surface for sub-agents, skills, prompts, hooks, and tools. Respect only explicit host-enforced or repo-configured limits.
+Keep active agents within the local guardrail limit.
 
 ## Knowledge Contract
 

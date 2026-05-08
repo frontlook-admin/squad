@@ -260,6 +260,12 @@ export const TEMPLATE_MANIFEST: TemplateFile[] = [
     overwriteOnUpgrade: true,
     description: 'Multi-agent collaboration and handoff patterns',
   },
+  {
+    source: 'skills/caveman/SKILL.md',
+    destination: '../.copilot/skills/caveman/SKILL.md',
+    overwriteOnUpgrade: true,
+    description: 'Terse caveman communication mode',
+  },
   
   // Workflows (squad-owned, overwrite on upgrade)
   {

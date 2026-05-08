@@ -117,6 +117,19 @@ function getSquadStartDir(): string {
   return process.env['SQUAD_TEAM_ROOT'] || process.cwd();
 }
 
+async function refreshBuiltInSkillsForDailyUse(cmd: string, hasGlobal: boolean): Promise<void> {
+  const commandsToSkip = new Set(['init', 'help', '--help', '-h', 'version', '--version', '-v', 'upgrade']);
+  if (commandsToSkip.has(cmd)) return;
+
+  try {
+    const { refreshBuiltInSkillsIfStale } = await import('./cli/core/upgrade.js');
+    const dest = hasGlobal ? (await lazySquadSdk()).resolveGlobalSquadPath() : getSquadStartDir();
+    refreshBuiltInSkillsIfStale(dest);
+  } catch {
+    // Auto-refresh is best-effort and should never block command execution.
+  }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   
@@ -283,6 +296,7 @@ async function main(): Promise<void> {
   if (rawCmd === undefined) {
     // Fire-and-forget update check — non-blocking, never delays shell startup
     import('./cli/self-update.js').then(m => m.notifyIfUpdateAvailable(VERSION)).catch(() => {});
+    await refreshBuiltInSkillsForDailyUse('', hasGlobal);
     const { runShell } = await lazyRunShell();
     await runShell();
     return;
@@ -294,6 +308,8 @@ async function main(): Promise<void> {
     console.log(`Run 'squad help' for the full command list.\n`);
     return;
   }
+
+  await refreshBuiltInSkillsForDailyUse(cmd, hasGlobal);
 
   // Route subcommands
   if (cmd === 'init') {

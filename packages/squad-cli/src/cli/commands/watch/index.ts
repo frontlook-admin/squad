@@ -41,6 +41,8 @@ import type { WatchCapability, WatchContext, WatchPhase, CapabilityResult } from
 import { CapabilityRegistry } from './registry.js';
 import { createDefaultRegistry } from './capabilities/index.js';
 import { createVerboseLogger, type VerboseLogger } from './verbose.js';
+import { buildWatchAgentCommand } from './prompt-utils.js';
+import type { CommunicationStyle } from '../../core/communication-style.js';
 
 // ── Re-exports for backward compatibility ────────────────────────
 
@@ -561,6 +563,7 @@ export interface WatchOptions {
   execute?: boolean;
   copilotFlags?: string;
   agentCmd?: string;
+  communicationStyle?: CommunicationStyle;
   maxConcurrent?: number;
   issueTimeoutMinutes?: number;
   monitorTeams?: boolean;
@@ -593,6 +596,7 @@ function legacyToConfig(options: WatchOptions): WatchConfig {
     timeout: options.issueTimeoutMinutes ?? 30,
     copilotFlags: options.copilotFlags,
     agentCmd: options.agentCmd,
+    communicationStyle: options.communicationStyle,
     capabilities,
   };
 }
@@ -607,13 +611,11 @@ export function buildAgentCommand(
   options: WatchOptions,
 ): { cmd: string; args: string[] } {
   const prompt = `Work on issue #${issue.number}: ${issue.title}. Read the issue body for full details.`;
-  if (options.agentCmd) {
-    const parts = options.agentCmd.trim().split(/\s+/);
-    return { cmd: parts[0]!, args: [...parts.slice(1), '-p', prompt] };
-  }
-  const args = ['-p', prompt];
-  if (options.copilotFlags) args.push(...options.copilotFlags.trim().split(/\s+/));
-  return { cmd: 'copilot', args };
+  return buildWatchAgentCommand(prompt, {
+    agentCmd: options.agentCmd,
+    copilotFlags: options.copilotFlags,
+    communicationStyle: options.communicationStyle,
+  });
 }
 
 export async function selfPull(teamRoot: string): Promise<void> {
@@ -707,6 +709,7 @@ export async function runWatch(dest: string, options: WatchOptions | WatchConfig
     interval: `${config.interval}m`,
     execute: config.execute ?? false,
     agentCmd: config.agentCmd ?? '(default: gh copilot)',
+    communicationStyle: config.communicationStyle ?? 'normal',
     dispatchMode: config.capabilities['wave-dispatch'] ? 'wave' : 'task',
     maxConcurrent: config.maxConcurrent ?? 1,
   });
@@ -806,6 +809,7 @@ export async function runWatch(dest: string, options: WatchOptions | WatchConfig
     config: {},
     agentCmd: config.agentCmd,
     copilotFlags: config.copilotFlags,
+    communicationStyle: config.communicationStyle,
     verbose: config.verbose,
     pidTracker,
   };

@@ -28,11 +28,12 @@ import { enableShellMetrics, recordShellSessionDuration, recordAgentResponseLate
 import { parseAgentFromDescription } from './agent-name-parser.js';
 import { buildCoordinatorPrompt, buildInitModePrompt, parseCoordinatorResponse, hasRosterEntries } from './coordinator.js';
 import { loadAgentCharter, buildAgentPrompt } from './spawn.js';
-import { buildShellSessionConfig } from './session-config.js';
+import { buildShellSessionConfig, loadConfiguredCommunicationStyle } from './session-config.js';
 import { createSession, saveSession, loadLatestSession, type SessionData } from './session-store.js';
 import { parseDispatchTargets, type ParsedInput } from './router.js';
 import { agentSessionGuidance, genericGuidance, rateLimitGuidance, extractRetryAfter, formatGuidance } from './error-messages.js';
 import { parseCastResponse, createTeam, formatCastSummary, augmentWithCastingEngine, type CastProposal } from '../core/cast.js';
+import type { CommunicationStyle } from '../core/communication-style.js';
 
 export { SessionRegistry } from './sessions.js';
 export { StreamBridge } from './stream-bridge.js';
@@ -212,12 +213,15 @@ export async function runShell(): Promise<void> {
   // Skip resume on first run (no team.md or .first-run marker present)
   const hasTeam = storage.existsSync(join(teamRoot, '.squad', 'team.md'));
   const isFirstRun = storage.existsSync(join(teamRoot, '.squad', '.first-run'));
+  const defaultCommunicationStyle = await loadConfiguredCommunicationStyle(teamRoot);
   let persistedSession: SessionData = createSession();
   const recentSession = (hasTeam && !isFirstRun) ? loadLatestSession(teamRoot) : null;
   if (recentSession) {
     persistedSession = recentSession;
     debugLog('resuming recent session', persistedSession.id);
   }
+  let currentCommunicationStyle: CommunicationStyle =
+    recentSession?.communicationStyle ?? defaultCommunicationStyle;
 
   // Initialize OpenTelemetry if endpoint is configured (e.g. Aspire dashboard)
   const eventBus = new RuntimeEventBus();
@@ -254,6 +258,30 @@ export async function runShell(): Promise<void> {
   let activeInitSession: SquadSession | null = null;
   let pendingCastConfirmation: { proposal: CastProposal; parsed: ParsedInput } | null = null;
 
+  async function resetConversationSessions(): Promise<void> {
+    const sessionsToClose = [
+      ...agentSessions.values(),
+      ...(coordinatorSession ? [coordinatorSession] : []),
+    ];
+
+    agentSessions.clear();
+    coordinatorSession = null;
+    streamBuffers.clear();
+
+    await Promise.allSettled(
+      sessionsToClose.map(async (session) => {
+        try { await session.close(); } catch (err) { debugLog('session close during style reset failed:', err); }
+      }),
+    );
+  }
+
+  function setCommunicationStyle(style: CommunicationStyle): void {
+    currentCommunicationStyle = style;
+    persistedSession.communicationStyle = style;
+    autoSave();
+    void resetConversationSessions();
+  }
+
   // Eager SDK warm-up — start coordinator session before user's first message
   // This runs in background so UI renders immediately
   (async () => {
@@ -265,6 +293,8 @@ export async function runShell(): Promise<void> {
         agentName: 'coordinator',
         systemPrompt,
         onPermissionRequest: approveAllPermissions,
+        communicationStyle: currentCommunicationStyle,
+        communicationStyleTarget: 'coordinator',
       }));
       debugLog('eager warm-up: coordinator session ready');
     } catch (err) {
@@ -412,6 +442,8 @@ export async function runShell(): Promise<void> {
         agentName,
         systemPrompt,
         onPermissionRequest: approveAllPermissions,
+        communicationStyle: currentCommunicationStyle,
+        communicationStyleTarget: 'agent',
       }));
       agentSessions.set(agentName, session);
     }
@@ -592,6 +624,8 @@ export async function runShell(): Promise<void> {
         agentName: 'coordinator',
         systemPrompt,
         onPermissionRequest: approveAllPermissions,
+        communicationStyle: currentCommunicationStyle,
+        communicationStyleTarget: 'coordinator',
       }));
       debugLog('coordinator session created:', {
         sessionId: coordinatorSession.sessionId,
@@ -879,6 +913,8 @@ export async function runShell(): Promise<void> {
         systemPrompt: initSysPrompt,
         onPermissionRequest: approveAllPermissions,
         extraContext: 'This is an init/casting session. Focus on proposing the best team and enabling broad future autonomy for Codex-driven execution.',
+        communicationStyle: currentCommunicationStyle,
+        communicationStyleTarget: 'none',
       }));
       activeInitSession = initSession;
       debugLog('handleInitCast: init session created');
@@ -1193,12 +1229,15 @@ export async function runShell(): Promise<void> {
   let shellMessages: ShellMessage[] = [];
   function autoSave(): void {
     persistedSession.messages = shellMessages;
+    persistedSession.communicationStyle = currentCommunicationStyle;
     try { saveSession(teamRoot, persistedSession); } catch (err) { debugLog('autoSave failed:', err); }
   }
 
   /** Callback for /resume command — replaces current messages with restored session. */
   function onRestoreSession(session: SessionData): void {
     persistedSession = session;
+    currentCommunicationStyle = session.communicationStyle ?? defaultCommunicationStyle;
+    void resetConversationSessions();
     // Clear old messages and terminal to prevent content bleed-through
     shellApi?.clearMessages();
     process.stdout.write('\x1b[2J\x1b[3J\x1b[H');
@@ -1277,6 +1316,9 @@ export async function runShell(): Promise<void> {
         onDispatch: handleDispatch,
         onCancel: handleCancel,
         onRestoreSession,
+        getCurrentCommunicationStyle: () => currentCommunicationStyle,
+        getDefaultCommunicationStyle: () => defaultCommunicationStyle,
+        onSetCommunicationStyle: setCommunicationStyle,
       }),
     ),
     // NOTE: Both incrementalRendering AND Ink's trailing-newline have been

@@ -45,6 +45,13 @@ export interface UpdateInfo {
   migrationsRun: string[];
 }
 
+export interface SkillRefreshResult {
+  refreshed: boolean;
+  synced: number;
+  teamRoot?: string;
+  skippedReason?: 'no-squad' | 'already-refreshed-today';
+}
+
 /**
  * Compare semver strings: -1 (a<b), 0 (a==b), 1 (a>b)
  */
@@ -457,7 +464,7 @@ function syncAllSkills(dest: string, templatesDir: string): number {
   let synced = 0;
   for (const entry of skillEntries) {
     const srcPath = path.join(templatesDir, entry.source);
-    const destPath = path.join(squadDir, entry.destination);
+    const destPath = path.resolve(squadDir, entry.destination);
 
     if (!storage.existsSync(srcPath)) continue;
     if (!entry.overwriteOnUpgrade && storage.existsSync(destPath)) continue;
@@ -468,6 +475,54 @@ function syncAllSkills(dest: string, templatesDir: string): number {
     synced++;
   }
   return synced;
+}
+
+const SKILL_REFRESH_STAMP_PATH = path.join('.squad', '.built-in-skills-refreshed-on');
+
+function getRefreshDay(now: Date): string {
+  return now.toISOString().slice(0, 10);
+}
+
+/**
+ * Refresh built-in skills once per day during normal Squad usage.
+ * This keeps Squad-owned skills like caveman current without requiring
+ * a full manual `squad upgrade`.
+ */
+export function refreshBuiltInSkillsIfStale(
+  startDir: string,
+  options: { force?: boolean; now?: Date } = {},
+): SkillRefreshResult {
+  const squadDirInfo = detectSquadDir(startDir);
+  if (!storage.existsSync(squadDirInfo.path)) {
+    return { refreshed: false, synced: 0, skippedReason: 'no-squad' };
+  }
+
+  const teamRoot = path.dirname(squadDirInfo.path);
+  const stampPath = path.join(teamRoot, SKILL_REFRESH_STAMP_PATH);
+  const today = getRefreshDay(options.now ?? new Date());
+  const lastRefresh = storage.existsSync(stampPath)
+    ? (storage.readSync(stampPath) ?? '').trim()
+    : '';
+
+  if (!options.force && lastRefresh === today) {
+    return {
+      refreshed: false,
+      synced: 0,
+      teamRoot,
+      skippedReason: 'already-refreshed-today',
+    };
+  }
+
+  const templatesDir = getTemplatesDir();
+  const synced = syncAllSkills(teamRoot, templatesDir);
+  storage.mkdirSync(path.dirname(stampPath), { recursive: true });
+  storage.writeSync(stampPath, `${today}\n`);
+
+  return {
+    refreshed: true,
+    synced,
+    teamRoot,
+  };
 }
 
 /**

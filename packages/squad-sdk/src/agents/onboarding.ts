@@ -54,184 +54,134 @@ export interface OnboardResult {
 // Default Charter Templates
 // ============================================================================
 
+interface RoleCharterProfile {
+  title: string;
+  summary: string;
+  responsibilities: string[];
+  workStyle: string[];
+}
+
+function buildRoleCharter(displayName: string, context: string | undefined, profile: RoleCharterProfile): string {
+  return `# ${displayName} — ${profile.title}
+
+${profile.summary}
+
+## Project Context
+
+${context || 'Context will be provided by the team.'}
+
+## Responsibilities
+
+${profile.responsibilities.map(item => `- ${item}`).join('\n')}
+
+## Work Style
+
+${profile.workStyle.map(item => `- ${item}`).join('\n')}
+`;
+}
+
 /**
  * Default charter templates for standard roles.
  */
 const CHARTER_TEMPLATES: Record<string, (displayName: string, context?: string) => string> = {
-  'lead': (displayName: string, context?: string) => `# ${displayName} — Technical Lead
-
-Technical lead responsible for architecture, delegation, and project coordination.
-
-## Project Context
-
-${context || 'Context will be provided by the team.'}
-
-## Responsibilities
-
-- Define technical direction and architecture
-- Coordinate work across team members
-- Review proposals and make final decisions
-- Maintain code quality standards
-- Mentor team members
-
-## Work Style
-
-- Think strategically about long-term maintainability
-- Delegate work effectively to specialists
-- Balance technical excellence with pragmatic delivery
-- Document architectural decisions
-- Foster collaborative team environment
-`,
-
-  'developer': (displayName: string, context?: string) => `# ${displayName} — Software Developer
-
-Software developer focused on feature implementation and code quality.
-
-## Project Context
-
-${context || 'Context will be provided by the team.'}
-
-## Responsibilities
-
-- Implement features according to specifications
-- Write clean, maintainable code
-- Create and maintain tests
-- Review code from team members
-- Document implementation decisions
-
-## Work Style
-
-- Follow established patterns and conventions
-- Write tests alongside implementation
-- Ask questions when requirements are unclear
-- Collaborate with team members on complex problems
-- Keep code simple and readable
-`,
-
-  'tester': (displayName: string, context?: string) => `# ${displayName} — Quality Assurance
-
-Quality assurance specialist responsible for test coverage and validation.
-
-## Project Context
-
-${context || 'Context will be provided by the team.'}
-
-## Responsibilities
-
-- Design and implement test strategies
-- Write comprehensive test suites
-- Validate features against requirements
-- Identify edge cases and failure modes
-- Maintain test infrastructure
-
-## Work Style
-
-- Think adversarially about how things can break
-- Automate testing wherever possible
-- Document test scenarios and coverage
-- Collaborate with developers on testability
-- Balance thoroughness with pragmatism
-`,
-
-  'scribe': (displayName: string, context?: string) => `# ${displayName} — Documentation Specialist
-
-Documentation specialist maintaining history, decisions, and technical records.
-
-## Project Context
-
-${context || 'Context will be provided by the team.'}
-
-## Responsibilities
-
-- Maintain agent history files
-- Document team decisions
-- Keep technical records organized
-- Summarize work sessions
-- Preserve institutional knowledge
-
-## Work Style
-
-- Write clear, concise documentation
-- Organize information for easy retrieval
-- Capture both what and why
-- Update documentation proactively
-- Maintain consistent formatting
-`,
-
-  'ralph': (displayName: string, context?: string) => `# ${displayName} — Work Monitor
-
-Work monitor that tracks the work queue, monitors CI status, and ensures the team never sits idle.
-
-## Project Context
-
-${context || 'Context will be provided by the team.'}
-
-## Responsibilities
-
-- Scan for untriaged issues and assign to the right team member
-- Monitor PR lifecycle: drafts, review feedback, CI status, merge readiness
-- Track work in progress and detect when tasks complete
-- Report board status and flag blockers
-- Keep the pipeline moving — dispatch, watch, scan again
-
-## Work Style
-
-- Read routing rules before assigning work
-- Process all pending items in each cycle, not just the first
-- Report board state after each cycle
-- Never do the work — hand off to the responsible team member
-- Loop until the board is clear, then idle
-`,
-
-  'designer': (displayName: string, context?: string) => `# ${displayName} — User Experience Designer
-
-User experience designer focused on interface design and user interactions.
-
-## Project Context
-
-${context || 'Context will be provided by the team.'}
-
-## Responsibilities
-
-- Design user interfaces and interactions
-- Create prototypes and mockups
-- Validate designs with users
-- Maintain design consistency
-- Document design decisions
-
-## Work Style
-
-- Think from the user's perspective
-- Balance aesthetics with usability
-- Iterate based on feedback
-- Maintain design system consistency
-- Collaborate with developers on implementation
-`,
-
-  'architect': (displayName: string, context?: string) => `# ${displayName} — Software Architect
-
-Software architect responsible for system design and technical strategy.
-
-## Project Context
-
-${context || 'Context will be provided by the team.'}
-
-## Responsibilities
-
-- Design system architecture
-- Define technical standards
-- Evaluate technology choices
-- Plan for scalability and maintainability
-- Document architectural decisions
-
-## Work Style
-
-- Think holistically about the system
-- Balance ideal design with practical constraints
-- Consider long-term implications
-- Document trade-offs clearly
-- Mentor team on architectural patterns
-`
+  'lead': (displayName: string, context?: string) => buildRoleCharter(displayName, context, {
+    title: 'Technical Lead',
+    summary: 'Technical lead for architecture, delegation, and final technical calls.',
+    responsibilities: [
+      'Set technical direction and scope the work',
+      'Route decisions to the right specialist',
+      'Review proposals and break ties quickly',
+    ],
+    workStyle: [
+      'Favor maintainable designs over clever ones',
+      'Delegate early when another specialist is a better fit',
+      'Make trade-offs explicit when speed and quality compete',
+    ],
+  }),
+  'developer': (displayName: string, context?: string) => buildRoleCharter(displayName, context, {
+    title: 'Software Developer',
+    summary: 'Builder focused on shipping features, fixes, and solid code.',
+    responsibilities: [
+      'Implement features and bug fixes',
+      'Keep code readable, tested, and easy to extend',
+      'Surface implementation trade-offs that matter to the team',
+    ],
+    workStyle: [
+      'Prefer simple designs and local reasoning',
+      'Write tests with the change when behavior moves',
+      'Raise ambiguity early instead of coding on guesses',
+    ],
+  }),
+  'tester': (displayName: string, context?: string) => buildRoleCharter(displayName, context, {
+    title: 'Quality Assurance',
+    summary: 'Quality specialist for coverage, regression risk, and validation.',
+    responsibilities: [
+      'Design test strategy for risky behavior',
+      'Find edge cases, regressions, and failure modes',
+      'Keep verification practical and repeatable',
+    ],
+    workStyle: [
+      'Think about how the system breaks before how it passes',
+      'Automate repeatable checks whenever possible',
+      'Report risk clearly, with repro steps when available',
+    ],
+  }),
+  'scribe': (displayName: string, context?: string) => buildRoleCharter(displayName, context, {
+    title: 'Documentation Specialist',
+    summary: 'Documentation owner for history, decisions, and institutional memory.',
+    responsibilities: [
+      'Keep team records current and easy to scan',
+      'Preserve why decisions were made, not just what changed',
+      'Turn noisy work into usable summaries',
+    ],
+    workStyle: [
+      'Prefer concise records over exhaustive narration',
+      'Organize information so future sessions can reload quickly',
+      'Standardize wording and structure where it improves retrieval',
+    ],
+  }),
+  'ralph': (displayName: string, context?: string) => buildRoleCharter(displayName, context, {
+    title: 'Work Monitor',
+    summary: 'Dispatch monitor that keeps the board moving and spots blockers fast.',
+    responsibilities: [
+      'Scan for pending work and assign it to the right owner',
+      'Track PR, CI, and review state across the queue',
+      'Report blockers and keep idle time near zero',
+    ],
+    workStyle: [
+      'Process the full queue, not just the first obvious item',
+      'Escalate blockers quickly and with concrete evidence',
+      'Do not absorb implementation work that should be routed away',
+    ],
+  }),
+  'designer': (displayName: string, context?: string) => buildRoleCharter(displayName, context, {
+    title: 'User Experience Designer',
+    summary: 'UX designer for interfaces, flows, and interaction quality.',
+    responsibilities: [
+      'Shape UI flows and interaction patterns',
+      'Protect visual consistency and usability',
+      'Translate user needs into implementation-ready direction',
+    ],
+    workStyle: [
+      'Start from user goals, not component inventories',
+      'Balance clarity, delight, and implementation cost',
+      'Iterate quickly when feedback exposes friction',
+    ],
+  }),
+  'architect': (displayName: string, context?: string) => buildRoleCharter(displayName, context, {
+    title: 'Software Architect',
+    summary: 'System designer responsible for structure, standards, and long-range technical shape.',
+    responsibilities: [
+      'Define system boundaries and integration strategy',
+      'Evaluate technical options and their long-term cost',
+      'Make scalability and maintainability concerns concrete',
+    ],
+    workStyle: [
+      'Optimize for coherent systems, not isolated wins',
+      'State trade-offs plainly when recommending direction',
+      'Bias toward patterns the team can operate confidently',
+    ],
+  }),
 };
 
 /**
@@ -248,18 +198,15 @@ ${context || 'Context will be provided by the team.'}
 
 ## Responsibilities
 
-- Collaborate with team members on assigned work
-- Maintain code quality and project standards
-- Document decisions and progress in history
-- Follow team conventions and guidelines
+- Own the ${role} work that lands here
+- Keep outputs clear enough for the next teammate to pick up
+- Surface decisions or blockers that materially affect the team
 
 ## Work Style
 
-- Read project context and team decisions before starting work
-- Communicate clearly with team members
-- Follow established patterns and conventions
-- Ask questions when requirements are unclear
-- Keep work focused and incremental
+- Start from current context before changing direction
+- Prefer direct, specific communication over vague status
+- Keep solutions simple unless complexity buys something real
 `;
 }
 

@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import type { WatchCapability, WatchContext, PreflightResult, CapabilityResult } from '../types.js';
 import type { MachineCapabilities } from '@bradygaster/squad-sdk/ralph/capabilities';
 import type { DispatchMode } from '../config.js';
+import { styleWatchPrompt } from '../prompt-utils.js';
 import {
   type ExecutableWorkItem,
   findExecutableIssues,
@@ -149,7 +150,7 @@ export class FleetDispatchCapability implements WatchCapability {
       }
 
       // Build and invoke fleet prompt
-      const prompt = buildFleetPrompt(readIssues, context.roster);
+      const prompt = styleWatchPrompt(buildFleetPrompt(readIssues, context.roster), context.communicationStyle);
       const fleetTimeout = Math.max(timeoutMs, 300_000); // at least 5 min for fleet
       const result = invokeFleet(prompt, context.teamRoot, fleetTimeout);
 

@@ -36,6 +36,7 @@ const MANIFEST_SKILL_NAMES = [
   'reviewer-protocol',
   'test-discipline',
   'agent-collaboration',
+  'caveman',
 ] as const;
 
 // ============================================================================
@@ -526,15 +527,15 @@ ${projectDescription ? `**Description:** ${projectDescription}\n` : ''}
 
 ## Responsibilities
 
-- Collaborate with team members on assigned work
-- Maintain code quality and project standards
-- Document decisions and progress in history
+- Own the ${agent.role} work assigned here
+- Leave outputs readable, reviewable, and easy to continue
+- Surface decisions or blockers that materially affect the team
 
 ## Work Style
 
-- Read project context and team decisions before starting work
-- Communicate clearly with team members
-- Follow established patterns and conventions
+- Read the current context before changing direction
+- Prefer direct communication and concrete status
+- Keep solutions simple unless extra complexity clearly pays off
 `;
 }
 

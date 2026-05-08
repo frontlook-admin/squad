@@ -10,6 +10,13 @@ import type {
   SquadSessionHooks,
 } from '@bradygaster/squad-sdk/adapter';
 import { FSStorageProvider } from '../sdk-local.js';
+import {
+  applyCommunicationStyleToPrompt,
+  normalizeCommunicationStyle,
+  readLegacyCommunicationStyle,
+  type CommunicationStyle,
+  type CommunicationStyleTarget,
+} from '../core/communication-style.js';
 
 const storage = new FSStorageProvider();
 
@@ -28,6 +35,8 @@ export interface BuildShellSessionConfigOptions {
   systemPrompt: string;
   onPermissionRequest?: SquadPermissionHandler;
   extraContext?: string;
+  communicationStyle?: CommunicationStyle;
+  communicationStyleTarget?: CommunicationStyleTarget;
 }
 
 function readOptionalFile(filePath: string): string | null {
@@ -69,6 +78,16 @@ async function loadRuntimeConfig(teamRoot: string): Promise<SquadConfig | null> 
   }
 
   return null;
+}
+
+export async function loadConfiguredCommunicationStyle(teamRoot: string): Promise<CommunicationStyle> {
+  const runtimeConfig = await loadRuntimeConfig(teamRoot);
+  const configuredStyle = runtimeConfig && typeof runtimeConfig === 'object'
+    ? (runtimeConfig as unknown as Record<string, unknown>)['communicationStyle']
+    : undefined;
+  return normalizeCommunicationStyle(configuredStyle)
+    ?? readLegacyCommunicationStyle(teamRoot)
+    ?? 'normal';
 }
 
 function resolveSkillDirectories(teamRoot: string): string[] | undefined {
@@ -178,12 +197,20 @@ export async function buildShellSessionConfig(
   const runtimeContext = buildRuntimeContext(options.teamRoot, options.extraContext);
   const hooks = await buildSessionHooks(options.teamRoot, options.agentName);
   const skillDirectories = resolveSkillDirectories(options.teamRoot);
+  const configuredStyle = await loadConfiguredCommunicationStyle(options.teamRoot);
+  const effectiveStyle = options.communicationStyle ?? configuredStyle;
+  const communicationStyleTarget = options.communicationStyleTarget ?? 'agent';
+  const styledSystemPrompt = applyCommunicationStyleToPrompt(
+    options.systemPrompt,
+    effectiveStyle,
+    communicationStyleTarget,
+  );
 
   return {
     streaming: true,
     systemMessage: {
       mode: 'append',
-      content: `${options.systemPrompt}\n\n${runtimeContext}`,
+      content: `${styledSystemPrompt}\n\n${runtimeContext}`,
     },
     workingDirectory: options.teamRoot,
     onPermissionRequest: options.onPermissionRequest,

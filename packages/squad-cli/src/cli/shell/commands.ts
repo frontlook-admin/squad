@@ -8,6 +8,11 @@ import type { ShellMessage } from './types.js';
 import path from 'node:path';
 import { FSStorageProvider } from '../sdk-local.js';
 import { runNapSync, formatNapReport } from '../core/nap.js';
+import {
+  getCommunicationStyleLabel,
+  normalizeCommunicationStyle,
+  type CommunicationStyle,
+} from '../core/communication-style.js';
 
 const storage = new FSStorageProvider();
 
@@ -17,6 +22,9 @@ export interface CommandContext {
   messageHistory: ShellMessage[];
   teamRoot: string;
   version?: string;
+  getCurrentCommunicationStyle?: () => CommunicationStyle;
+  getDefaultCommunicationStyle?: () => CommunicationStyle;
+  onSetCommunicationStyle?: (style: CommunicationStyle) => void;
   /** Callback to restore a previous session's messages into the shell. */
   onRestoreSession?: (session: SessionData) => void;
 }
@@ -69,8 +77,10 @@ export function executeCommand(
       return handleNap(args, context);
     case 'init':
       return handleInit(args, context);
+    case 'caveman':
+      return handleCaveman(args, context);
     default: {
-      const known = ['status', 'history', 'clear', 'help', 'quit', 'exit', 'agents', 'sessions', 'resume', 'version', 'nap', 'init'];
+      const known = ['status', 'history', 'clear', 'help', 'quit', 'exit', 'agents', 'sessions', 'resume', 'version', 'nap', 'init', 'caveman'];
       const suggestion = known.find(k => k.startsWith(command.slice(0, 2)));
       const hint = suggestion ? ` Did you mean /${suggestion}?` : '';
       return { handled: false, output: `Unknown command: /${command}.${hint} Type /help for commands.` };
@@ -146,6 +156,7 @@ function handleHelp(args: string[]): CommandResult {
         '/sessions — Past sessions',
         '/resume <id> — Restore session by ID prefix',
         '/init [--roles] [prompt] — Set up your team',
+        '/caveman [mode] — Terse communication mode',
         '/nap [--deep] [--dry-run] — Context hygiene',
         '/version — Show version',
         '/clear — Clear screen',
@@ -170,6 +181,7 @@ function handleHelp(args: string[]): CommandResult {
       '  /sessions           — List saved sessions',
       '  /resume <id>        — Restore a past session by ID prefix',
       '  /init [--roles] [p] — Set up your team (add --roles for base role catalog)',
+      '  /caveman [mode]     — Toggle Caveman mode (lite/full/ultra/wenyan/off)',
       '  /nap [--deep]       — Context hygiene (compress, prune, archive)',
       '  /version            — Show version',
       '  /clear              — Clear the screen',
@@ -271,6 +283,49 @@ function handleInit(args: string[], context: CommandContext): CommandResult {
       '',
       `Team file: ${context.teamRoot}/.squad/team.md`,
     ].join('\n'),
+  };
+}
+
+function handleCaveman(args: string[], context: CommandContext): CommandResult {
+  const current = context.getCurrentCommunicationStyle?.() ?? 'normal';
+  const configuredDefault = context.getDefaultCommunicationStyle?.() ?? 'normal';
+  const rawArg = args[0]?.trim().toLowerCase();
+
+  if (!rawArg || rawArg === 'status') {
+    return {
+      handled: true,
+      output: [
+        `${BOLD}Communication Style${RESET}`,
+        `Current: ${getCommunicationStyleLabel(current)}`,
+        `Default: ${getCommunicationStyleLabel(configuredDefault)}`,
+        '',
+        'Usage: /caveman [lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra|off|default|status]',
+      ].join('\n'),
+    };
+  }
+
+  if (rawArg === 'default') {
+    context.onSetCommunicationStyle?.(configuredDefault);
+    return {
+      handled: true,
+      output: `Communication style reset to ${getCommunicationStyleLabel(configuredDefault)}.`,
+    };
+  }
+
+  const nextStyle = normalizeCommunicationStyle(rawArg);
+  if (!nextStyle) {
+    return {
+      handled: true,
+      output: 'Unknown Caveman mode. Use: lite, full, ultra, wenyan-lite, wenyan, wenyan-ultra, off, default, or status.',
+    };
+  }
+
+  context.onSetCommunicationStyle?.(nextStyle);
+  return {
+    handled: true,
+    output: nextStyle === 'normal'
+      ? 'Caveman mode off. Communication style now normal.'
+      : `Caveman mode active: ${getCommunicationStyleLabel(nextStyle)}.`,
   };
 }
 

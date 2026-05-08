@@ -15,6 +15,7 @@ import type { ShellMessage, AgentSession } from '../types.js';
 import { MemoryManager } from '../memory.js';
 import type { SessionData } from '../session-store.js';
 import type { ThinkingPhase } from './ThinkingIndicator.js';
+import type { CommunicationStyle } from '../../core/communication-style.js';
 
 /** Methods exposed to the host so StreamBridge can push data into React state. */
 export interface ShellApi {
@@ -40,11 +41,27 @@ export interface AppProps {
   onDispatch?: (parsed: ParsedInput) => Promise<void>;
   onCancel?: () => void;
   onRestoreSession?: (session: SessionData) => void;
+  getCurrentCommunicationStyle?: () => CommunicationStyle;
+  getDefaultCommunicationStyle?: () => CommunicationStyle;
+  onSetCommunicationStyle?: (style: CommunicationStyle) => void;
 }
 
 const EXIT_WORDS = new Set(['exit', 'quit', 'q']);
 
-export const App: React.FC<AppProps> = ({ registry, renderer, teamRoot, version, maxMessages, onReady, onDispatch, onCancel, onRestoreSession }) => {
+export const App: React.FC<AppProps> = ({
+  registry,
+  renderer,
+  teamRoot,
+  version,
+  maxMessages,
+  onReady,
+  onDispatch,
+  onCancel,
+  onRestoreSession,
+  getCurrentCommunicationStyle,
+  getDefaultCommunicationStyle,
+  onSetCommunicationStyle,
+}) => {
   const { exit } = useApp();
   // Session-scoped ID ensures Static keys are unique across session boundaries,
   // preventing Ink from confusing items when sessions are restored.
@@ -215,6 +232,9 @@ export const App: React.FC<AppProps> = ({ registry, renderer, teamRoot, version,
         messageHistory: [...messagesRef.current, userMsg],
         teamRoot,
         version,
+        getCurrentCommunicationStyle,
+        getDefaultCommunicationStyle,
+        onSetCommunicationStyle,
         onRestoreSession,
       });
 
@@ -274,7 +294,18 @@ export const App: React.FC<AppProps> = ({ registry, renderer, teamRoot, version,
     }
 
     setAgents([...registry.getAll()]);
-  }, [registry, renderer, teamRoot, exit, onDispatch, appendMessages, awaitingInitPrompt]);
+  }, [
+    registry,
+    renderer,
+    teamRoot,
+    exit,
+    onDispatch,
+    appendMessages,
+    awaitingInitPrompt,
+    getCurrentCommunicationStyle,
+    getDefaultCommunicationStyle,
+    onSetCommunicationStyle,
+  ]);
 
   const rosterAgents = welcome?.agents ?? [];
 

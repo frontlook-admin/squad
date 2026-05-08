@@ -12,6 +12,14 @@ export interface SquadConfig {
   hooks?: HooksConfig;
   ceremonies?: CeremonyConfig[];
   plugins?: PluginConfig;
+  communicationStyle?:
+    | 'normal'
+    | 'caveman-lite'
+    | 'caveman-full'
+    | 'caveman-ultra'
+    | 'caveman-wenyan-lite'
+    | 'caveman-wenyan'
+    | 'caveman-wenyan-ultra';
 }
 
 export interface TeamConfig {
@@ -96,6 +104,7 @@ export const DEFAULT_CONFIG: SquadConfig = {
     },
   },
   agents: [],
+  communicationStyle: 'normal',
 };
 
 export function defineConfig(config: Partial<SquadConfig>): SquadConfig {
@@ -130,6 +139,20 @@ export function validateConfig(config: unknown): config is SquadConfig {
   if (!c.routing || !Array.isArray(c.routing.rules)) return false;
   if (!c.models || typeof c.models.default !== 'string') return false;
   if (!Array.isArray(c.agents)) return false;
+  if (c.communicationStyle !== undefined) {
+    const validStyles = new Set([
+      'normal',
+      'caveman-lite',
+      'caveman-full',
+      'caveman-ultra',
+      'caveman-wenyan-lite',
+      'caveman-wenyan',
+      'caveman-wenyan-ultra',
+    ]);
+    if (typeof c.communicationStyle !== 'string' || !validStyles.has(c.communicationStyle)) {
+      return false;
+    }
+  }
   
   return true;
 }

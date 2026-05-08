@@ -50,6 +50,8 @@ const KEEP_ENTRIES_DEFAULT = 5;
 const KEEP_ENTRIES_DEEP = 3;
 const JOURNAL_FILE = '.nap-journal';
 const TOKENS_PER_KB = 250;
+const CONTEXT_THRESHOLD = 2 * 1024;
+const MIN_COMPRESSION_BYTES = 32;
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -108,6 +110,134 @@ function daysAgoFromLine(line: string): number | null {
   const d = new Date(m[1]!);
   if (isNaN(d.getTime())) return null;
   return (Date.now() - d.getTime()) / (24 * 60 * 60 * 1000);
+}
+
+function collapseWhitespace(text: string): string {
+  return text.replace(/[ \t]{2,}/g, ' ').trim();
+}
+
+function compressPlainSentence(text: string): string {
+  let result = ` ${text} `;
+
+  const replacements: Array<[RegExp, string]> = [
+    [/\bin order to\b/gi, 'to'],
+    [/\bfor the purpose of\b/gi, 'for'],
+    [/\bthere is\b/gi, 'is'],
+    [/\bthere are\b/gi, 'are'],
+    [/\bit is\b/gi, 'is'],
+    [/\bthat is\b/gi, 'that is'],
+    [/\bdoes not\b/gi, "doesn't"],
+    [/\bdo not\b/gi, "don't"],
+    [/\bcannot\b/gi, "can't"],
+    [/\bshould be\b/gi, 'should'],
+    [/\bcan be\b/gi, 'can'],
+    [/\bused to\b/gi, 'used to'],
+    [/\bfor future agents and sessions\b/gi, 'for future sessions'],
+    [/\broot directory\b/gi, 'root dir'],
+    [/\brepository\b/gi, 'repo'],
+    [/\binformation\b/gi, 'info'],
+  ];
+  for (const [pattern, replacement] of replacements) {
+    result = result.replace(pattern, ` ${replacement} `);
+  }
+
+  result = result.replace(/\b(?:just|really|basically|actually|simply|quite|very|clearly|obviously)\b/gi, ' ');
+  result = result.replace(/\b(?:a|an|the)\b/gi, ' ');
+  result = result.replace(/\s+([,.;:!?])/g, '$1');
+  result = result.replace(/\(\s+/g, '(').replace(/\s+\)/g, ')');
+  result = result.replace(/\s+/g, ' ');
+
+  return collapseWhitespace(result);
+}
+
+function compressProsePreservingLiterals(text: string): string {
+  const placeholders = new Map<string, string>();
+  let seq = 0;
+  const protect = (pattern: RegExp, input: string): string => input.replace(pattern, (match) => {
+    const key = `__NAP_LITERAL_${seq++}__`;
+    placeholders.set(key, match);
+    return key;
+  });
+
+  let working = text;
+  working = protect(/`[^`]+`/g, working);
+  working = protect(/https?:\/\/\S+/g, working);
+  working = protect(/\b[A-Za-z]:\\[^\s)]+/g, working);
+  working = protect(/\b(?:\.{0,2}\/)?[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+\b/g, working);
+
+  working = compressPlainSentence(working);
+
+  for (const [key, value] of placeholders.entries()) {
+    working = working.replaceAll(key, value);
+  }
+
+  return working;
+}
+
+function compressMarkdownCaveman(content: string): string {
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let inCodeFence = false;
+  let inFrontmatter = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    const trimmed = line.trim();
+
+    if (trimmed === '```' || trimmed.startsWith('```')) {
+      inCodeFence = !inCodeFence;
+      result.push(line);
+      continue;
+    }
+
+    if (!inCodeFence && trimmed === '---' && (i === 0 || inFrontmatter)) {
+      inFrontmatter = !inFrontmatter;
+      result.push(line);
+      continue;
+    }
+
+    if (inCodeFence || inFrontmatter) {
+      result.push(line);
+      continue;
+    }
+
+    if (!trimmed) {
+      if (result[result.length - 1] !== '') result.push('');
+      continue;
+    }
+
+    if (/^\s*#{1,6}\s/.test(line) || /^\s*<!--/.test(line) || /^\s*>\s*$/.test(line)) {
+      result.push(line);
+      continue;
+    }
+
+    const bulletMatch = line.match(/^(\s*(?:[-*+]|\d+\.)\s+)(.*)$/);
+    if (bulletMatch) {
+      result.push(bulletMatch[1]! + compressProsePreservingLiterals(bulletMatch[2]!));
+      continue;
+    }
+
+    const quoteMatch = line.match(/^(\s*>\s+)(.*)$/);
+    if (quoteMatch) {
+      result.push(quoteMatch[1]! + compressProsePreservingLiterals(quoteMatch[2]!));
+      continue;
+    }
+
+    result.push(compressProsePreservingLiterals(line));
+  }
+
+  return result.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+}
+
+function maybeCompressMarkdownContent(content: string): { content: string; bytesSaved: number } {
+  const compressed = compressMarkdownCaveman(content);
+  const originalBytes = Buffer.byteLength(content, 'utf8');
+  const compressedBytes = Buffer.byteLength(compressed, 'utf8');
+  const saved = originalBytes - compressedBytes;
+  if (saved < MIN_COMPRESSION_BYTES) {
+    return { content, bytesSaved: 0 };
+  }
+  return { content: compressed, bytesSaved: saved };
 }
 
 // ─── Metrics collection ─────────────────────────────────────────────────
@@ -233,8 +363,9 @@ function compressHistory(
   }
 
   const newContent = newLines.join('\n');
+  const compressed = maybeCompressMarkdownContent(newContent);
   const archiveContent = archiveLines.join('\n');
-  const saved = size - Buffer.byteLength(newContent, 'utf8');
+  const saved = size - Buffer.byteLength(compressed.content, 'utf8');
 
   if (!dryRun) {
     const archivePath = filePath.replace(/\.md$/, '-archive.md');
@@ -242,15 +373,39 @@ function compressHistory(
     if (archiveContent.trim()) {
       storage.appendSync(archivePath, archiveContent + '\n');
     }
-    storage.writeSync(filePath, newContent);
+    storage.writeSync(filePath, compressed.content);
   }
 
   const relPath = path.basename(path.dirname(filePath));
   return {
     type: 'compress',
     target: filePath,
-    description: `Compressed ${relPath}/history.md: kept ${keepEntries} entries, archived ${archive.length}`,
+    description: `Compressed ${relPath}/history.md: kept ${keepEntries} entries, archived ${archive.length}${compressed.bytesSaved > 0 ? ', caveman-compressed prose' : ''}`,
     bytesSaved: Math.max(0, saved),
+  };
+}
+
+function compressContextFile(
+  filePath: string,
+  dryRun: boolean,
+): NapAction | null {
+  if (!storage.existsSync(filePath)) return null;
+  const size = fileSize(filePath);
+  if (size <= CONTEXT_THRESHOLD) return null;
+
+  const content = storage.readSync(filePath) ?? '';
+  const compressed = maybeCompressMarkdownContent(content);
+  if (compressed.bytesSaved <= 0) return null;
+
+  if (!dryRun) {
+    storage.writeSync(filePath, compressed.content);
+  }
+
+  return {
+    type: 'compress',
+    target: filePath,
+    description: `Caveman-compressed ${path.relative(path.dirname(filePath), filePath).replace(/\\/g, '/')}`,
+    bytesSaved: compressed.bytesSaved,
   };
 }
 
@@ -423,22 +578,23 @@ function archiveDecisions(squadDir: string, dryRun: boolean): NapAction | null {
   const header = lines.slice(0, headerEnd).join('\n');
 
   const recentContent = header + '\n' + recent.map(e => lines.slice(e.start, e.end).join('\n')).join('\n') + '\n';
+  const compressedRecent = maybeCompressMarkdownContent(recentContent);
   const archiveContent = old.map(e => lines.slice(e.start, e.end).join('\n')).join('\n') + '\n';
 
-  const saved = size - Buffer.byteLength(recentContent, 'utf8');
+  const saved = size - Buffer.byteLength(compressedRecent.content, 'utf8');
 
   if (!dryRun) {
     const archivePath = path.join(squadDir, 'decisions-archive.md');
     if (archiveContent.trim()) {
       storage.appendSync(archivePath, archiveContent);
     }
-    storage.writeSync(decisionsFile, recentContent);
+    storage.writeSync(decisionsFile, compressedRecent.content);
   }
 
   return {
     type: 'archive',
     target: decisionsFile,
-    description: `Archived ${old.length} old decision entries, kept ${recent.length} recent`,
+    description: `Archived ${old.length} old decision entries, kept ${recent.length} recent${compressedRecent.bytesSaved > 0 ? ', caveman-compressed kept prose' : ''}`,
     bytesSaved: Math.max(0, saved),
   };
 }
@@ -497,6 +653,15 @@ export async function runNap(options: NapOptions): Promise<NapResult> {
       }
     }
 
+    for (const contextFile of [
+      path.join(squadDir, 'shared-knowledge.md'),
+      path.join(squadDir, 'identity', 'wisdom.md'),
+      path.join(squadDir, 'identity', 'now.md'),
+    ]) {
+      const action = compressContextFile(contextFile, dryRun);
+      if (action) actions.push(action);
+    }
+
     // Log pruning
     actions.push(...pruneLogs(path.join(squadDir, 'orchestration-log'), dryRun));
     actions.push(...pruneLogs(path.join(squadDir, 'log'), dryRun));
@@ -551,6 +716,15 @@ export function runNapSync(options: NapOptions): NapResult {
         const action = compressHistory(hf, keepEntries, dryRun);
         if (action) actions.push(action);
       }
+    }
+
+    for (const contextFile of [
+      path.join(squadDir, 'shared-knowledge.md'),
+      path.join(squadDir, 'identity', 'wisdom.md'),
+      path.join(squadDir, 'identity', 'now.md'),
+    ]) {
+      const action = compressContextFile(contextFile, dryRun);
+      if (action) actions.push(action);
     }
 
     actions.push(...pruneLogs(path.join(squadDir, 'orchestration-log'), dryRun));

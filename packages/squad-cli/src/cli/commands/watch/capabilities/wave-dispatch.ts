@@ -4,6 +4,7 @@
 
 import { execFile, type ChildProcess } from 'node:child_process';
 import type { WatchCapability, WatchContext, PreflightResult, CapabilityResult } from '../types.js';
+import { buildWatchAgentCommand } from '../prompt-utils.js';
 
 interface SubTask {
   description: string;
@@ -34,22 +35,12 @@ function parseSubTasks(body: string | undefined): SubTask[] {
   return tasks;
 }
 
-function buildAgentCommand(prompt: string, context: WatchContext): { cmd: string; args: string[] } {
-  if (context.agentCmd) {
-    const parts = context.agentCmd.trim().split(/\s+/);
-    return { cmd: parts[0]!, args: [...parts.slice(1), '-p', prompt] };
-  }
-  const args = ['-p', prompt];
-  if (context.copilotFlags) args.push(...context.copilotFlags.trim().split(/\s+/));
-  return { cmd: 'copilot', args };
-}
-
 function executeSubTask(
   prompt: string,
   context: WatchContext,
   timeoutMs: number,
 ): Promise<{ success: boolean; error?: string }> {
-  const { cmd, args } = buildAgentCommand(prompt, context);
+  const { cmd, args } = buildWatchAgentCommand(prompt, context);
   return new Promise((resolve) => {
     const _cp: ChildProcess = execFile(
       cmd, args,
