@@ -37,7 +37,7 @@ git init
 ### 2. Install Squad
 
 ```bash
-npm install -g @bradygaster/squad-cli
+npm install -g flsquad-cli
 squad init
 ```
 
@@ -81,7 +81,7 @@ Upgrading Squad is a two-step process.
 **Step 1: Update the CLI binary**
 
 ```bash
-npm install -g @bradygaster/squad-cli@latest
+npm install -g flsquad-cli@latest
 ```
 
 **Step 2: Update Squad-owned files in your project**
@@ -102,7 +102,7 @@ Use `--force` to re-apply updates even when your installed version already match
 |---------|-------------|
 | `squad init` | **Init** — scaffold Squad in the current directory (idempotent — safe to run multiple times); alias: `hire`; use `--global` to init in personal squad directory, `--mode remote <path>` for dual-root mode |
 | `squad upgrade` | Update Squad-owned files to latest; never touches your team state; use `--global` to upgrade personal squad, `--migrate-directory` to rename `.ai-team/` → `.squad/` |
-| `squad upgrade --self` | Update the Squad CLI package itself; add `--insider` for prerelease builds |
+| `squad upgrade --self` | Update the Squad CLI package itself; add `--insider` for dev-channel prerelease builds |
 | `squad status` | Show which squad is active and why |
 | `squad triage` | **Watch mode** — poll for issues and auto-triage to team (aliases: `watch`, `loop`); use `--interval <minutes>` to set polling frequency (default: 10); with `--execute` dispatch Copilot agents; use `--agent-cmd`, `--copilot-flags`, `--auth-user` to customize agent execution; `--health` shows watch status; `--log-file` for diagnostics |
 | `squad copilot` | Add/remove the Copilot coding agent (@copilot); use `--off` to remove, `--auto-assign` to enable auto-assignment |
@@ -129,22 +129,22 @@ Ralph continuously polls for work and dispatches agents to handle it. Watch mode
 
 ```bash
 # Monitor for issues (triage mode — no execution)
-npx @bradygaster/squad-cli watch
+npx flsquad-cli watch
 
 # Monitor and auto-execute against actionable issues
-npx @bradygaster/squad-cli watch --execute --interval 5
+npx flsquad-cli watch --execute --interval 5
 
 # With custom agent runner and copilot flags
-npx @bradygaster/squad-cli watch --execute \
+npx flsquad-cli watch --execute \
   --agent-cmd "agency copilot" \
   --copilot-flags "--yolo --autopilot --mcp mail --agent squad" \
   --auth-user myaccount
 
 # Run watch with diagnostics
-npx @bradygaster/squad-cli watch --execute --log-file ./watch.log --verbose
+npx flsquad-cli watch --execute --log-file ./watch.log --verbose
 
 # Check health of running watch process
-npx @bradygaster/squad-cli watch --health
+npx flsquad-cli watch --health
 ```
 
 ### Key Flags
@@ -423,7 +423,21 @@ Run `squad build` to generate all the markdown. See the [SDK-First Mode Guide](d
 
 Squad is a monorepo with two packages:
 - **`@bradygaster/squad-sdk`** — Core runtime and library for programmable agent orchestration
-- **`@bradygaster/squad-cli`** — Command-line interface that depends on the SDK
+- **`flsquad-cli`** — Command-line interface that depends on the SDK
+
+### Publishing The CLI
+
+Use the built-in publish helpers from the repo root when releasing the npm CLI package:
+
+```bash
+./scripts/publish-flsquad-cli.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-flsquad-cli.ps1
+```
+
+The publish helper verifies npm auth, checks the CLI package name, runs lint plus focused CLI tests, builds the package, and then publishes `flsquad-cli`. By default it also checks that the referenced `@bradygaster/squad-sdk` version is already available on npm before publishing the CLI.
 
 ### Building
 
