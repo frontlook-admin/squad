@@ -1187,30 +1187,35 @@ ${projectDescription ? `- **Description:** ${projectDescription}\n` : ''}- **Cre
   if (includeMcpConfig) {
     const mcpConfigPath = join(teamRoot, '.copilot', 'mcp-config.json');
     if (!storage.existsSync(mcpConfigPath)) {
-      const mcpSample = isGitHub
+      const mcpServers = isGitHub
         ? {
-            mcpServers: {
-              "EXAMPLE-github": {
-                command: "npx",
-                args: ["-y", "@anthropic/github-mcp-server"],
-                env: {
-                  GITHUB_TOKEN: "${GITHUB_TOKEN}"
-                }
+            "EXAMPLE-github": {
+              command: "npx",
+              args: ["-y", "@anthropic/github-mcp-server"],
+              env: {
+                GITHUB_TOKEN: "${GITHUB_TOKEN}"
               }
+            },
+            "EXAMPLE-cavemem": {
+              command: "cavemem",
+              args: ["mcp"]
             }
           }
         : {
-            mcpServers: {
-              "EXAMPLE-azure-devops": {
-                command: "npx",
-                args: ["-y", "@azure/devops-mcp-server"],
-                env: {
-                  AZURE_DEVOPS_ORG: "${AZURE_DEVOPS_ORG}",
-                  AZURE_DEVOPS_PAT: "${AZURE_DEVOPS_PAT}"
-                }
+            "EXAMPLE-azure-devops": {
+              command: "npx",
+              args: ["-y", "@azure/devops-mcp-server"],
+              env: {
+                AZURE_DEVOPS_ORG: "${AZURE_DEVOPS_ORG}",
+                AZURE_DEVOPS_PAT: "${AZURE_DEVOPS_PAT}"
               }
+            },
+            "EXAMPLE-cavemem": {
+              command: "cavemem",
+              args: ["mcp"]
             }
           };
+      const mcpSample = { mcpServers };
       await storage.write(mcpConfigPath, JSON.stringify(mcpSample, null, 2) + '\n');
       createdFiles.push(toRelativePath(mcpConfigPath));
     } else {

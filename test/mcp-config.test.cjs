@@ -105,6 +105,12 @@ describe('MCP config handling (#11)', () => {
 
       const result = runSquad(['upgrade'], tmpDir);
       assert.equal(result.exitCode, 0, `upgrade should work with MCP config present: ${result.stdout}`);
+      const upgraded = JSON.parse(fs.readFileSync(path.join(copilotDir, 'mcp-config.json'), 'utf8'));
+      assert.deepEqual(upgraded.mcpServers.github, validConfig.mcpServers.github);
+      assert.deepEqual(upgraded.mcpServers['EXAMPLE-cavemem'], {
+        command: 'cavemem',
+        args: ['mcp']
+      });
     });
 
     it('squad runs correctly when .copilot/mcp-config.json is empty object', () => {
@@ -116,6 +122,11 @@ describe('MCP config handling (#11)', () => {
 
       const result = runSquad(['upgrade'], tmpDir);
       assert.equal(result.exitCode, 0, `upgrade should work with empty MCP config: ${result.stdout}`);
+      const upgraded = JSON.parse(fs.readFileSync(path.join(copilotDir, 'mcp-config.json'), 'utf8'));
+      assert.deepEqual(upgraded.mcpServers['EXAMPLE-cavemem'], {
+        command: 'cavemem',
+        args: ['mcp']
+      });
     });
 
     it('squad does not crash when .copilot/ contains non-JSON files', () => {

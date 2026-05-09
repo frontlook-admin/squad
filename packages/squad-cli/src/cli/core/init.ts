@@ -19,6 +19,7 @@ import { fatal } from './errors.js';
 import { detectProjectType } from './project-type.js';
 import { getPackageVersion, stampVersion } from './version.js';
 import { installGitHooks } from '../commands/install-hooks.js';
+import { ensureCavememMcpSample } from './upgrade.js';
 
 const storage = new FSStorageProvider();
 
@@ -258,6 +259,7 @@ export async function runInit(dest: string, options: RunInitOptions = {}): Promi
   }
 
   process.off('SIGINT', sigintHandler);
+  ensureCavememMcpSample(dest);
 
   // Ensure version is fully stamped in squad.agent.md
   const agentPath = path.join(agentFileRoot, '.github', 'agents', 'squad.agent.md');

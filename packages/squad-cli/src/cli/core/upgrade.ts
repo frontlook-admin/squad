@@ -299,6 +299,12 @@ const ENSURE_DIRECTORIES = [
   '.copilot/skills',
 ];
 
+const CAVEMEM_SAMPLE_SERVER_NAME = 'EXAMPLE-cavemem';
+const CAVEMEM_SAMPLE_SERVER = {
+  command: 'cavemem',
+  args: ['mcp'],
+} as const;
+
 /**
  * Ensure .gitattributes has required merge=union rules (idempotent)
  */
@@ -382,6 +388,47 @@ export function ensureDirectories(dest: string): string[] {
     }
   }
   return created;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Ensure .copilot/mcp-config.json contains a Cavemem sample entry without
+ * overwriting existing user MCP configuration.
+ */
+export function ensureCavememMcpSample(dest: string): boolean {
+  const copilotDir = path.join(dest, '.copilot');
+  const filePath = path.join(copilotDir, 'mcp-config.json');
+
+  storage.mkdirSync(copilotDir, { recursive: true });
+
+  let config: Record<string, unknown>;
+  if (!storage.existsSync(filePath)) {
+    config = { mcpServers: { [CAVEMEM_SAMPLE_SERVER_NAME]: { ...CAVEMEM_SAMPLE_SERVER } } };
+    storage.writeSync(filePath, JSON.stringify(config, null, 2) + '\n');
+    return true;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(storage.readSync(filePath) ?? '{}');
+  } catch {
+    warn('Skipping Cavemem MCP sample backfill because .copilot/mcp-config.json is not valid JSON.');
+    return false;
+  }
+
+  config = isRecord(parsed) ? { ...parsed } : {};
+  const existingServers = isRecord(config.mcpServers) ? { ...config.mcpServers } : {};
+  if (existingServers[CAVEMEM_SAMPLE_SERVER_NAME] !== undefined) {
+    return false;
+  }
+
+  existingServers[CAVEMEM_SAMPLE_SERVER_NAME] = { ...CAVEMEM_SAMPLE_SERVER };
+  config.mcpServers = existingServers;
+  storage.writeSync(filePath, JSON.stringify(config, null, 2) + '\n');
+  return true;
 }
 
 /**
@@ -591,6 +638,11 @@ function runEnsureChecks(dest: string, templatesDir: string, filesUpdated: strin
   if (dirsCreated.length > 0) {
     success(`created ${dirsCreated.length} missing directories`);
     filesUpdated.push(...dirsCreated);
+  }
+
+  if (ensureCavememMcpSample(dest)) {
+    success('ensured .copilot/mcp-config.json includes the Cavemem MCP sample');
+    filesUpdated.push('.copilot/mcp-config.json');
   }
 
   const castingFiles = ensureCastingDefaults(dest, templatesDir);

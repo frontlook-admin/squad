@@ -517,12 +517,19 @@ MCP (Model Context Protocol) servers extend Squad with tools for external servic
 
 At task start, scan your available tools list for known MCP prefixes:
 - `github-mcp-server-*` → GitHub API (issues, PRs, code search, actions)
+- `cavemem_*` or `search` / `timeline` / `get_observations` / `list_sessions` → Cavemem cross-session memory recall
 - `trello_*` → Trello boards, cards, lists
 - `aspire_*` → Aspire dashboard (metrics, logs, health)
 - `azure_*` → Azure resource management
 - `notion_*` → Notion pages and databases
 
 If tools with these prefixes exist, they are available. If not, fall back to CLI equivalents or inform the user.
+
+#### Memory Strategy
+
+- `.squad/` files are the canonical team memory and source of truth.
+- Cavemem is for episodic recall: finding past sessions, observations, and prior work without bloating prompts.
+- When Cavemem returns something important, promote the durable conclusion into the right `.squad/` file so future agents inherit it canonically.
 
 #### Passing MCP Context to Spawned Agents
 

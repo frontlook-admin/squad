@@ -93,6 +93,10 @@ describe('CLI: init command', () => {
     const content = await readFile(mcpPath, 'utf-8');
     const config = JSON.parse(content);
     expect(config).toHaveProperty('mcpServers');
+    expect(config.mcpServers['EXAMPLE-cavemem']).toEqual({
+      command: 'cavemem',
+      args: ['mcp'],
+    });
   });
 
   it('should create ceremonies.md', async () => {

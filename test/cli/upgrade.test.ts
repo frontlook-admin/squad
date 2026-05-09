@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, chmodSync }
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { runInit } from '@bradygaster/squad-cli/core/init';
-import { runUpgrade, ensureGitattributes, ensureGitignore, ensureDirectories, ensureCastingDefaults, selfUpgradeCli } from '@bradygaster/squad-cli/core/upgrade';
+import { runUpgrade, ensureGitattributes, ensureGitignore, ensureDirectories, ensureCastingDefaults, ensureCavememMcpSample, selfUpgradeCli } from '@bradygaster/squad-cli/core/upgrade';
 import { refreshBuiltInSkillsIfStale } from '../../packages/squad-cli/src/cli/core/upgrade.js';
 import { getPackageVersion } from '@bradygaster/squad-cli/core/version';
 
@@ -209,6 +209,31 @@ describe('CLI: upgrade command', () => {
     });
     expect(third.refreshed).toBe(true);
     expect(await readFile(stampPath, 'utf-8')).toContain('2026-05-09');
+  });
+
+  it('backfills the Cavemem MCP sample without overwriting existing MCP servers', async () => {
+    const mcpConfigPath = join(TEST_ROOT, '.copilot', 'mcp-config.json');
+    await writeFile(mcpConfigPath, JSON.stringify({
+      mcpServers: {
+        trello: {
+          command: 'npx',
+          args: ['trello-mcp'],
+        },
+      },
+    }, null, 2));
+
+    const changed = ensureCavememMcpSample(TEST_ROOT);
+    expect(changed).toBe(true);
+
+    const updated = JSON.parse(await readFile(mcpConfigPath, 'utf-8'));
+    expect(updated.mcpServers.trello).toEqual({
+      command: 'npx',
+      args: ['trello-mcp'],
+    });
+    expect(updated.mcpServers['EXAMPLE-cavemem']).toEqual({
+      command: 'cavemem',
+      args: ['mcp'],
+    });
   });
 
   it('creates missing Codex setup files on upgrade without overwriting existing files', async () => {

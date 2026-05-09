@@ -112,6 +112,33 @@ function copyRecursive(src, target) {
   }
 }
 
+function ensureCavememMcpSampleLegacy(dest) {
+  const mcpDir = path.join(dest, '.copilot');
+  const mcpConfigPath = path.join(mcpDir, 'mcp-config.json');
+  try {
+    fs.mkdirSync(mcpDir, { recursive: true });
+    let config = {};
+    if (fs.existsSync(mcpConfigPath)) {
+      config = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8') || '{}');
+    }
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      config = {};
+    }
+    if (!config.mcpServers || typeof config.mcpServers !== 'object' || Array.isArray(config.mcpServers)) {
+      config.mcpServers = {};
+    }
+    if (!config.mcpServers['EXAMPLE-cavemem']) {
+      config.mcpServers['EXAMPLE-cavemem'] = {
+        command: 'cavemem',
+        args: ['mcp']
+      };
+      fs.writeFileSync(mcpConfigPath, JSON.stringify(config, null, 2) + '\n');
+    }
+  } catch {
+    // Optional config — ignore invalid JSON or write errors in legacy shim
+  }
+}
+
 
 // --- Rework Rate subcommand ---
 if (cmd === 'rework') {
@@ -1189,10 +1216,10 @@ if (cmd === 'import') {
       : `skill-${index}`;
     return { skillContent, skillName };
   });
-  const hasForce = typeof force !== 'undefined' && force;
+  const overwriteSkills = process.argv.includes('--force');
 
   if (fs.existsSync(copilotSkillsImportDir)) {
-    if (hasForce) {
+    if (overwriteSkills) {
       const archivedSkillsDir = path.join(dest, '.copilot', `skills.backup.${Date.now()}`);
       fs.renameSync(copilotSkillsImportDir, archivedSkillsDir);
     } else {
@@ -1631,6 +1658,8 @@ if (isUpgrade) {
       // Non-fatal in early-exit path
     }
 
+    ensureCavememMcpSampleLegacy(dest);
+
     console.log(`${GREEN}✓${RESET} Already up to date (v${pkg.version})`);
     process.exit(0);
   }
@@ -1768,6 +1797,10 @@ if (!isUpgrade) {
               TRELLO_API_KEY: "${TRELLO_API_KEY}",
               TRELLO_TOKEN: "${TRELLO_TOKEN}"
             }
+          },
+          "EXAMPLE-cavemem": {
+            command: "cavemem",
+            args: ["mcp"]
           }
         }
       };
@@ -1780,6 +1813,8 @@ if (!isUpgrade) {
     console.log(`${DIM}mcp-config.json already exists — skipping${RESET}`);
   }
 }
+
+ensureCavememMcpSampleLegacy(dest);
 
 // Copy default ceremonies config
 const ceremoniesDest = path.join(squadInfo.path, 'ceremonies.md');

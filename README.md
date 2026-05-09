@@ -445,6 +445,29 @@ If the SDK version is not published yet, publish it first:
 powershell -ExecutionPolicy Bypass -File .\scripts\publish-flsquad-cli.ps1 -PublishSdkFirst
 ```
 
+### Cavemem Memory Layer
+
+Squad now understands Cavemem as an optional MCP-backed recall layer.
+
+- Keep `.squad/` as the canonical, team-edited memory.
+- Use Cavemem for cross-session recall, historical search, and episodic observations.
+- Promote important findings from Cavemem back into `.squad/` so they become durable team knowledge.
+
+To wire Cavemem into a repo-level MCP config:
+
+```json
+{
+  "mcpServers": {
+    "cavemem": {
+      "command": "cavemem",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Squad init and upgrade also seed an `EXAMPLE-cavemem` entry in `.copilot/mcp-config.json` so teams have a ready-made template.
+
 ### Building
 
 ```bash

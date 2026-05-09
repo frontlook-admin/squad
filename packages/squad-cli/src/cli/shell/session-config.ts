@@ -175,6 +175,11 @@ function buildRuntimeContext(teamRoot: string, extraContext?: string): string {
     '## Runtime Capability Contract',
     '- Use the full capability surface exposed by the current host session, including sub-agents, skills, prompts, hooks, tools, and MCP integrations when available.',
     '- Do not self-impose extra limitations beyond explicit host-enforced policy, repository guardrails, and configured Squad hooks.',
+    '## Memory & Recall',
+    '- Treat `.squad/` files as the canonical team memory and source of truth.',
+    '- If a Cavemem MCP server is available, use it for cross-session recall, prior-session search, and recovering historical observations before asking the user to repeat context.',
+    '- After retrieving useful context from Cavemem, write durable conclusions back into the appropriate `.squad/` files instead of treating episodic recall as canonical policy.',
+    '- Degrade gracefully when Cavemem is unavailable: continue with `.squad/` memory, local files, and user-provided context.',
   ];
 
   for (const file of CONTEXT_FILES) {

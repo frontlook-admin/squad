@@ -43,6 +43,21 @@ Users configure MCP servers at these locations (checked in priority order):
 }
 ```
 
+## Sample Config — Cavemem
+
+```json
+{
+  "mcpServers": {
+    "cavemem": {
+      "command": "cavemem",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Use Cavemem for searchable cross-session recall. Keep `.squad/` files as the canonical team memory; use Cavemem to find past observations, then write durable decisions back into `.squad/`.
+
 ## Sample Config — Azure
 
 ```json
@@ -81,6 +96,7 @@ Users configure MCP servers at these locations (checked in priority order):
 ## Authentication Notes
 
 - **GitHub MCP requires a separate token** from the `gh` CLI auth. Generate at https://github.com/settings/tokens
+- **Cavemem requires the `cavemem` CLI** on `PATH` so Squad can launch `cavemem mcp`
 - **Trello requires API key + token** from https://trello.com/power-ups/admin
 - **Azure requires service principal credentials** — see Azure docs for setup
 - **Aspire uses the dashboard URL** — typically `http://localhost:18888` during local dev
