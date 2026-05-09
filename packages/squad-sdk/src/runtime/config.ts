@@ -391,7 +391,7 @@ export const DEFAULT_CONFIG: SquadConfig = {
       scribeMode: 'sync'
     }
   },
-  communicationStyle: 'normal',
+  communicationStyle: 'caveman-full',
 };
 
 // ============================================================================

@@ -4,10 +4,16 @@
  */
 
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { FSStorageProvider } from '../sdk-local.js';
 
 const storage = new FSStorageProvider();
+
+function isBundledTemplatesDir(candidate: string): boolean {
+  return storage.existsSync(join(candidate, 'squad.agent.md.template'))
+    && storage.existsSync(join(candidate, 'workflows'))
+    && storage.existsSync(join(candidate, 'skills'));
+}
 
 /** Template file descriptor */
 export interface TemplateFile {
@@ -346,11 +352,22 @@ export function getTemplatesDir(): string {
   let dir = dirname(currentFile);
   for (let i = 0; i < 6; i++) {
     const candidate = join(dir, 'templates');
-    if (storage.existsSync(candidate)) return candidate;
+    if (isBundledTemplatesDir(candidate)) return candidate;
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
+
+  const cwdCandidates = [
+    resolve(process.cwd(), 'packages', 'squad-cli', 'templates'),
+    resolve(process.cwd(), 'packages', 'squad-sdk', 'templates'),
+    resolve(process.cwd(), 'templates'),
+  ];
+
+  for (const candidate of cwdCandidates) {
+    if (isBundledTemplatesDir(candidate)) return candidate;
+  }
+
   throw new Error('Templates directory not found — installation may be corrupted');
 }
 

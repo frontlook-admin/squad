@@ -794,16 +794,21 @@ export interface SelfUpgradeOptions {
   force?: boolean;
 }
 
+export interface SelfUpgradeDeps {
+  exec?: (command: string) => void;
+  env?: NodeJS.ProcessEnv;
+}
+
 /**
  * Detect the package manager that installed the CLI.
  * Returns 'npm', 'pnpm', 'yarn', or 'npm' as fallback.
  */
-function detectPackageManager(): 'npm' | 'pnpm' | 'yarn' {
-  const execPath = process.env['npm_execpath'] ?? '';
+function detectPackageManager(env: NodeJS.ProcessEnv = process.env): 'npm' | 'pnpm' | 'yarn' {
+  const execPath = env['npm_execpath'] ?? '';
   if (execPath.includes('pnpm')) return 'pnpm';
   if (execPath.includes('yarn')) return 'yarn';
   // Check npm_config_user_agent as fallback
-  const userAgent = process.env['npm_config_user_agent'] ?? '';
+  const userAgent = env['npm_config_user_agent'] ?? '';
   if (userAgent.startsWith('pnpm')) return 'pnpm';
   if (userAgent.startsWith('yarn')) return 'yarn';
   return 'npm';
@@ -816,11 +821,18 @@ function detectPackageManager(): 'npm' | 'pnpm' | 'yarn' {
  * appropriate global install command. On EACCES errors, suggests `sudo` with
  * the detected installer name.
  */
-export async function selfUpgradeCli(options: SelfUpgradeOptions = {}): Promise<void> {
+export async function selfUpgradeCli(
+  options: SelfUpgradeOptions = {},
+  deps: SelfUpgradeDeps = {},
+): Promise<void> {
   const { execSync } = await import('node:child_process');
+  const exec = deps.exec ?? ((command: string) => {
+    execSync(command, { stdio: 'inherit' });
+  });
+  const env = deps.env ?? process.env;
   const tag = options.insider ? 'insider' : 'latest';
   const pkg = `flsquad-cli@${tag}`;
-  const pm = detectPackageManager();
+  const pm = detectPackageManager(env);
 
   let cmd: string;
   switch (pm) {
@@ -838,7 +850,7 @@ export async function selfUpgradeCli(options: SelfUpgradeOptions = {}): Promise<
   info(`Self-upgrading via ${pm}: ${cmd}`);
 
   try {
-    execSync(cmd, { stdio: 'inherit' });
+    exec(cmd);
   } catch (err: unknown) {
     const isPermission =
       err instanceof Error &&

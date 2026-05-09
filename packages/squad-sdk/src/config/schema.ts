@@ -104,7 +104,7 @@ export const DEFAULT_CONFIG: SquadConfig = {
     },
   },
   agents: [],
-  communicationStyle: 'normal',
+  communicationStyle: 'caveman-full',
 };
 
 export function defineConfig(config: Partial<SquadConfig>): SquadConfig {

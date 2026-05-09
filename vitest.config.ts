@@ -1,7 +1,18 @@
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   resolve: {
+    alias: [
+      {
+        find: /^@bradygaster\/squad-cli$/,
+        replacement: path.resolve(__dirname, 'packages/squad-cli/src/cli/index.ts'),
+      },
+      {
+        find: /^@bradygaster\/squad-cli\/(.+)$/,
+        replacement: path.resolve(__dirname, 'packages/squad-cli/src/cli') + '/$1.ts',
+      },
+    ],
     // Force vitest to resolve @bradygaster/squad-sdk from the workspace root,
     // not from a duplicate copy under packages/squad-cli/node_modules/.
     // Without this, vi.mock('@bradygaster/squad-sdk') targets the root copy

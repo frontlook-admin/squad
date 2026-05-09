@@ -407,7 +407,21 @@ describe('CLI: upgrade command', () => {
 
   /* ── --self flag (selfUpgradeCli) ──────────────────────────── */
 
-  it.todo('selfUpgradeCli shells out with correct package tag (ESM spy limitation)');
+  it('selfUpgradeCli shells out with correct package tag', async () => {
+    const commands: string[] = [];
+
+    await selfUpgradeCli(
+      { insider: true },
+      {
+        env: { npm_execpath: '/usr/local/bin/pnpm' },
+        exec: (command: string) => {
+          commands.push(command);
+        },
+      },
+    );
+
+    expect(commands).toEqual(['pnpm add -g flsquad-cli@insider']);
+  });
 
   /* ── ensureDirectories includes .squad/casting ──────────────── */
 

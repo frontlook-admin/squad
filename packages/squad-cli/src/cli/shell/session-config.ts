@@ -87,7 +87,7 @@ export async function loadConfiguredCommunicationStyle(teamRoot: string): Promis
     : undefined;
   return normalizeCommunicationStyle(configuredStyle)
     ?? readLegacyCommunicationStyle(teamRoot)
-    ?? 'normal';
+    ?? 'caveman-full';
 }
 
 function resolveSkillDirectories(teamRoot: string): string[] | undefined {

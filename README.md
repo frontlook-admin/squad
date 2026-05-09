@@ -439,6 +439,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish-flsquad-cli.ps1
 
 The publish helper verifies npm auth, checks the CLI package name, runs lint plus focused CLI tests, builds the package, and then publishes `flsquad-cli`. By default it also checks that the referenced `@bradygaster/squad-sdk` version is already available on npm before publishing the CLI.
 
+If the SDK version is not published yet, publish it first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-flsquad-cli.ps1 -PublishSdkFirst
+```
+
 ### Building
 
 ```bash

@@ -8,7 +8,7 @@ export function styleWatchPrompt(
   prompt: string,
   communicationStyle?: CommunicationStyle,
 ): string {
-  return applyCommunicationStyleToPrompt(prompt, communicationStyle ?? 'normal', 'agent');
+  return applyCommunicationStyleToPrompt(prompt, communicationStyle ?? 'caveman-full', 'agent');
 }
 
 export function buildWatchAgentCommand(

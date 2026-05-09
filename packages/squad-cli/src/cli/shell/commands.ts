@@ -287,8 +287,8 @@ function handleInit(args: string[], context: CommandContext): CommandResult {
 }
 
 function handleCaveman(args: string[], context: CommandContext): CommandResult {
-  const current = context.getCurrentCommunicationStyle?.() ?? 'normal';
-  const configuredDefault = context.getDefaultCommunicationStyle?.() ?? 'normal';
+  const current = context.getCurrentCommunicationStyle?.() ?? 'caveman-full';
+  const configuredDefault = context.getDefaultCommunicationStyle?.() ?? 'caveman-full';
   const rawArg = args[0]?.trim().toLowerCase();
 
   if (!rawArg || rawArg === 'status') {

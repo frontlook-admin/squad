@@ -709,7 +709,7 @@ export async function runWatch(dest: string, options: WatchOptions | WatchConfig
     interval: `${config.interval}m`,
     execute: config.execute ?? false,
     agentCmd: config.agentCmd ?? '(default: gh copilot)',
-    communicationStyle: config.communicationStyle ?? 'normal',
+    communicationStyle: config.communicationStyle ?? 'caveman-full',
     dispatchMode: config.capabilities['wave-dispatch'] ? 'wave' : 'task',
     maxConcurrent: config.maxConcurrent ?? 1,
   });
